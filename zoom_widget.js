@@ -9,6 +9,7 @@ $.widget("ui.zoomboard", {
 		, key_info: keys
 		, reset_timeout: 1000
 		, center_bias: -0.15
+		, is_ipad: navigator.userAgent.match(/iPad/i) != null
     }
 	, _create: function() {
 		$.Widget.prototype._create.call(this);
@@ -52,27 +53,50 @@ $.widget("ui.zoomboard", {
 			position: "relative"
 			, overflow: "hidden"
 		});
-		this.element.bind("mousedown.zoomboard", _.bind(this.on_element_click, this));
-		$(window).bind("mousedown.zoomboard", function(event) {
-			event.preventDefault();
-			event.stopPropagation();
-			return false;
-		});
+		if(this.option("is_ipad")) {
+			this.element.bind("touchstart.zoomboard", _.bind(this.on_element_click, this));
+			$(window).bind("touchstart.zoomboard", function(event) {
+				event.preventDefault();
+				event.stopPropagation();
+				return false;
+			});
+		} else {
+			this.element.bind("mousedown.zoomboard", _.bind(this.on_element_click, this));
+			$(window).bind("mousedown.zoomboard", function(event) {
+				event.preventDefault();
+				event.stopPropagation();
+				return false;
+			});
+		}
 		this.reset_timeout = undefined;
     }
 	, destroy: function() {
-		$.Widget.prototype.destroy.call(this);
 		this.img.remove();
-		this.element.unbind("mousedown.zoomboard")
-					.css({
-						position: ""
-						, overflow: ""
-					});
-		$(window).unbind("mousedown.zoomboard");
+		this.element.css({
+			position: ""
+			, overflow: ""
+		});
+		if(this.option("is_ipad")) {
+			this.element.unbind("touchstart.zoomboard");
+			$(window).unbind("touchstart.zoomboard");
+		} else {
+			this.element.unbind("mousedown.zoomboard");
+			$(window).unbind("mousedown.zoomboard");
+		}
+
+		$.Widget.prototype.destroy.call(this);
 	}
 	, on_element_click: function(event) {
-		var x = event.offsetX - this.position.x
-			, y = event.offsetY - this.position.y;
+		var x,y;
+		var offset = this.element.offset();
+		if(this.option("is_ipad")) {
+			var offset = this.element.offset();
+			x = event.originalEvent.pageX - offset.left - this.position.x;
+			y = event.originalEvent.pageY - offset.top  - this.position.y;
+		} else {
+			x = event.offsetX - this.position.x;
+			y = event.offsetY - this.position.y;
+		}
 
 		var new_position = _.clone(this.position);
 		var scale_factor = this.option("zoom_factor");

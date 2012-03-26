@@ -1,0 +1,17 @@
+{ "name": "Zoomboard"
+, "description": "The world's smallest keyboard"
+, "version": "0.0.1"
+, "author": "Stephen Oney (Carnegie Mellon)"
+, "maintainers": [
+	{
+	"name": "Stephen Oney"
+	, "email": "soney@cs.cmu.edu"
+	, "web": "http://www.stephenoney.com/"
+	}
+]
+, "private": true
+, "dependencies": {
+	"express": "latest"
+}
+, "engines": {"node": ">= 0.4.7"}
+}

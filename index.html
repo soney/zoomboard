@@ -1,6 +1,7 @@
 <html>
 	<head>
 		<link type="text/css" href="jquery-ui-1.8.16.custom/css/ui-lightness/jquery-ui-1.8.16.custom.css" rel="stylesheet" />	
+		<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 		<script type="text/javascript" src="underscore-min.js"></script>
 		<script type="text/javascript" src="jquery.min.js"></script>
 		<script type="text/javascript" src="jquery-ui-1.8.16.custom/js/jquery-ui-1.8.16.custom.min.js"></script>
@@ -10,6 +11,7 @@
 			$(function() {
 				$("div.container").zoomboard({
 					img_src: "keyboard2.png"
+					, original_scale: 0.15
 				}).bind("zoomkey", function(event) {
 					var key = event.key;
 					var typed_div = $("div.typed");
@@ -28,6 +30,8 @@
 				font-size: 48pt;
 				font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
 				font-weight: 100;
+				height: 80px;
+				scroll: auto;
 			}
 			:focus {
 				outline: none;
