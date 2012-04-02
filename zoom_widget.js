@@ -1,7 +1,7 @@
 (function() {
 $.widget("ui.zoomboard", {
 	options: { 
-		img_src: undefined
+		img_src: "ZoomBoard3b.png"
 		, zoom_factor: 2.2 
 		, original_scale: 0.15
 		, max_zoom: 1.0
