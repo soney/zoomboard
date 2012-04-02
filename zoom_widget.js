@@ -10,7 +10,7 @@ $.widget("ui.zoomboard", {
 		, reset_on_max_zoom: true
 		, reset_timeout: 1000
 		, center_bias: -0.15
-		, is_ipad: navigator.userAgent.match(/iPad/i) != null
+		, is_ipad: navigator.userAgent.match(/(iPad|iPod)/i) != null
 		, anim_time: 0.1
 		, min_swipe_x: 40
 		, min_swipe_y: 30
