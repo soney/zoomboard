@@ -3,6 +3,7 @@ $.widget("ui.zoomboard", {
 	options: { 
 		img_srcs: ["ZoomBoard3b.png", "symbols3b.png"]
 		, keymaps: [keys, keys_sym]
+		, keyboard_names: ["ZB", "#"]
 		, zoom_factor: 2.2 
 		, original_scale: 0.12
 		, max_zoom: 1.0
@@ -63,7 +64,7 @@ $.widget("ui.zoomboard", {
 										, "width": "100%"
 										, "position": "absolute"
 										, "pointer-events": "none"
-										, "-webkit-transition": "all 0.2s ease-in-out"
+										, "-webkit-transition": "opacity 0.2s ease-in-out"
 										, "color": "white"
 										, "text-align": "center"
 										, "font-size": (this.img.height()/1.2)+"px"
@@ -72,6 +73,7 @@ $.widget("ui.zoomboard", {
 										, "font-family": '"HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif'
 										, "opacity": 0
 										, "text-transform": "capitalize"
+										, "line-height": "normal"
 									});
 		this.element.css({
 			position: "relative"
@@ -172,10 +174,12 @@ $.widget("ui.zoomboard", {
 	, set_keyboard_index: function(index) {
 		var img_src = this.option("img_srcs")[index];
 		var keymap = this.option("keymaps")[index];
+		var keyboard_name = this.option("keyboard_names")[index];
 
 		this.img.attr("src", img_src);
 		this.keymap = keymap;
 		this.keyboard_index = index;
+		this.flash(keyboard_name, 500, "yellow");
 	}
 	, get_keyboard_index: function() {
 		return this.keyboard_index;
@@ -361,10 +365,14 @@ $.widget("ui.zoomboard", {
 		var reset_timeout = this.option("reset_timeout");
 		this.reset_timeout = window.setTimeout(_.bind(this.reset, this), reset_timeout);
 	}
-	, flash: function(text, duration) {
+	, flash: function(text, duration, color) {
 		duration = duration || 250;
+		color = color || "white";
 		window.clearTimeout(this.flash_timeout);
-		this.overlay.css("opacity", 0.95)
+		this.overlay.css({
+						"opacity": 0.95
+						, "color": color
+						})
 					.html(text);
 		this.flash_timeout = window.setTimeout($.proxy(function() {
 			this.overlay.css("opacity", 0);
