@@ -179,7 +179,7 @@ $.widget("ui.zoomboard", {
 		this.img.attr("src", img_src);
 		this.keymap = keymap;
 		this.keyboard_index = index;
-		this.flash(keyboard_name, 500, "yellow");
+		this.flash(keyboard_name, 500, "#7A9FC4");
 	}
 	, get_keyboard_index: function() {
 		return this.keyboard_index;
@@ -198,13 +198,14 @@ $.widget("ui.zoomboard", {
 			zoomkey_event.key = "delete";
 			zoomkey_event.entry_type = "swipe";
 			this.element.trigger(zoomkey_event);
-			this.flash("&#9224");
+			//this.flash("&#9224;");
+			this.flash("&#x232B;");
 		} else if(direction === "right") {
 			var zoomkey_event = jQuery.Event("zb_key");
 			zoomkey_event.key = "space";
 			zoomkey_event.entry_type = "swipe";
 			this.element.trigger(zoomkey_event);
-			this.flash("&#9251");
+			this.flash("&#9251;");
 		} else if(direction === "up") {
 			var keyboard_index = this.get_keyboard_index();
 			var num_keyboards = this.get_num_keyboards();
