@@ -10,15 +10,16 @@
 		<script type="text/javascript">
 			$(function() {
 				$("div.container").zoomboard({
-					img_src: "ZoomBoard3b.png"
-					, original_scale: 0.15
-				}).bind("zoomkey", function(event) {
+					original_scale: 0.15
+				}).on("zb_key", function(event) {
 					var key = event.key;
 					var typed_div = $("div.typed");
 					if(key === "delete") {
 						typed_div.contents().last().remove();
 					} else if(key === "return") {
 						typed_div.append($("<br />"));
+					} else if(key === "space") {
+						typed_div.append(" ");
 					} else {
 						typed_div.append(key);
 					}

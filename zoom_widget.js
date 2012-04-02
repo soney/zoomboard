@@ -1,15 +1,18 @@
 (function() {
 $.widget("ui.zoomboard", {
 	options: { 
-		img_src: "ZoomBoard3b.png"
+		img_srcs: ["ZoomBoard3b.png", "symbols3b.png"]
+		, keymaps: [keys, keys_sym]
 		, zoom_factor: 2.2 
 		, original_scale: 0.15
 		, max_zoom: 1.0
 		, reset_on_max_zoom: true
-		, key_info: keys
 		, reset_timeout: 1000
 		, center_bias: -0.15
 		, is_ipad: navigator.userAgent.match(/iPad/i) != null
+		, anim_time: 0.1
+		, min_swipe_x: 40
+		, min_swipe_y: 30
     }
 	, _create: function() {
 		$.Widget.prototype._create.call(this);
@@ -19,14 +22,13 @@ $.widget("ui.zoomboard", {
 		};
 		this.original_dimensions = {width:0, height:0};
 		this.position = {};
-		this.img = $("<img />")	.attr("src", this.option("img_src"))
-								.appendTo(this.element)
+		this.img = $("<img />")	.appendTo(this.element)
 								.css({
 									position: "absolute"
 									, left: "0px"
 									, top: "0px"
 									, "pointer-events": "none"
-									, "-webkit-transition": "all 0.1s ease-out"
+									, "-webkit-transition": "all " + this.option("anim_time") + "s ease-out"
 								})
 								.bind("load", function(event) {
 									var width = self.img[0]["naturalWidth"]
@@ -54,21 +56,73 @@ $.widget("ui.zoomboard", {
 			, overflow: "hidden"
 		});
 		if(this.option("is_ipad")) {
-			this.element.bind("touchstart.zoomboard", _.bind(this.on_element_click, this));
-			$(window).bind("touchstart.zoomboard", function(event) {
+			var self = this;
+			this.element.on("touchstart.zoomboard_swipe", function(ts_e) {
+				var is_moving = false;
+				if(ts_e.originalEvent.touches.length === 1) {
+					var startX = ts_e.originalEvent.touches[0].pageX;
+					var startY = ts_e.originalEvent.touches[0].pageY;
+					is_moving = true;
+
+					var remove_event_handlers = function() {
+						is_moving = false;
+						self.element.off("touchmove.zb_swipe");
+						self.element.off("touchend.zb_swipe");
+						startX = startY = null;
+					};
+					self.element.on("touchmove.zb_swipe", function(e) {
+						if(is_moving === true) {
+							var x = e.originalEvent.touches[0].pageX;
+							var y = e.originalEvent.touches[0].pageY;
+							var dx = startX - x; var dy = startY - y;
+
+							if(Math.abs(dx) >= self.option("min_swipe_x")) {
+								if(dx > 0) {
+									self.on_swipe("left");
+									remove_event_handlers();
+								} else {
+									self.on_swipe("right");
+									remove_event_handlers();
+								}
+							} else if(Math.abs(dy) >= self.option("min_swipe_y")) {
+								if(dy > 0) {
+									self.on_swipe("up");
+									remove_event_handlers();
+								} else {
+									self.on_swipe("down");
+									remove_event_handlers();
+								}
+							}
+						}
+					});
+					self.element.on("touchend.zb_swipe", function() {
+						remove_event_handlers();
+					});
+				}
+			});
+			this.element.on("touchstart.zoomboard", _.bind(this.on_element_click, this));
+		} else {
+			this.element.on("mousedown.zoomboard", _.bind(this.on_element_click, this));
+			$(window).on("mousedown.zoomboard", function(event) {
 				event.preventDefault();
 				event.stopPropagation();
 				return false;
 			});
-		} else {
-			this.element.bind("mousedown.zoomboard", _.bind(this.on_element_click, this));
-			$(window).bind("mousedown.zoomboard", function(event) {
-				event.preventDefault();
-				event.stopPropagation();
-				return false;
+			var self = this;
+			$(window).on("keydown.zoomboard", function(event) {
+				if(event.keyCode === 37) { //left
+					self.on_swipe("left");
+				} else if(event.keyCode === 39) { //right
+					self.on_swipe("right");
+				} else if(event.keyCode === 38) { //up
+					self.on_swipe("up");
+				} else if(event.keyCode === 40) { //down
+					self.on_swipe("down");
+				}
 			});
 		}
 		this.reset_timeout = undefined;
+		this.set_keyboard_index(0);
     }
 	, destroy: function() {
 		this.img.remove();
@@ -77,18 +131,71 @@ $.widget("ui.zoomboard", {
 			, overflow: ""
 		});
 		if(this.option("is_ipad")) {
-			this.element.unbind("touchstart.zoomboard");
-			$(window).unbind("touchstart.zoomboard");
+			this.element.off("touchstart.zoomboard");
+			$(window).off("touchstart.zoomboard");
 		} else {
-			this.element.unbind("mousedown.zoomboard");
-			$(window).unbind("mousedown.zoomboard");
+			this.element.off("mousedown.zoomboard");
+			$(window).off("mousedown.zoomboard");
+			$(window).off("keydown.zoomboard");
 		}
 
 		$.Widget.prototype.destroy.call(this);
 	}
+	, set_keyboard_index: function(index) {
+		var img_src = this.option("img_srcs")[index];
+		var keymap = this.option("keymaps")[index];
+
+		this.img.attr("src", img_src);
+		this.keymap = keymap;
+		this.keyboard_index = index;
+	}
+	, get_keyboard_index: function() {
+		return this.keyboard_index;
+	}
+	, get_num_keyboards: function() {
+		return this.option("img_srcs").length;
+	}
+	, on_swipe: function(direction) {
+		var zoomswipe_event = jQuery.Event("zoomswipe");
+		zoomswipe_event.direction = direction;
+		this.element.trigger(zoomswipe_event);
+		this.reset(false);
+
+		if(direction === "left") {
+			var zoomkey_event = jQuery.Event("zb_key");
+			zoomkey_event.key = "delete";
+			zoomkey_event.entry_type = "swipe";
+			this.element.trigger(zoomkey_event);
+		} else if(direction === "right") {
+			var zoomkey_event = jQuery.Event("zb_key");
+			zoomkey_event.key = "space";
+			zoomkey_event.entry_type = "swipe";
+			this.element.trigger(zoomkey_event);
+		} else if(direction === "up") {
+			var keyboard_index = this.get_keyboard_index();
+			var num_keyboards = this.get_num_keyboards();
+			keyboard_index++;
+
+			if(keyboard_index >= num_keyboards) {
+				keyboard_index = 0;
+			}
+
+			this.set_keyboard_index(keyboard_index);
+		} else if(direction === "down") {
+			var keyboard_index = this.get_keyboard_index();
+
+			keyboard_index--;
+
+			if(keyboard_index < 0) {
+				var num_keyboards = this.get_num_keyboards();
+				keyboard_index = num_keyboards-1;
+			}
+
+			this.set_keyboard_index(keyboard_index);
+		}
+	}
 	, on_element_click: function(event) {
 		var x,y;
-		var offset = this.element.offset();
 		if(this.option("is_ipad")) {
 			var offset = this.element.offset();
 			x = event.originalEvent.pageX - offset.left - this.position.x;
@@ -96,7 +203,13 @@ $.widget("ui.zoomboard", {
 		} else {
 			x = event.offsetX - this.position.x;
 			y = event.offsetY - this.position.y;
+			event.preventDefault();
+			event.stopPropagation();
 		}
+
+		var zoomtouch_event = jQuery.Event("zoomtouch");
+		zoomtouch_event.x = x;zoomtouch_event.y = y;
+		this.element.trigger(zoomtouch_event);
 
 		var new_position = _.clone(this.position);
 		var scale_factor = this.option("zoom_factor");
@@ -112,9 +225,10 @@ $.widget("ui.zoomboard", {
 				, y: y/current_zoom
 			};
 			var key = this.get_key_for_point(original_image_point)
-			var event = jQuery.Event("zoomkey");
-			event.key = key.key;
-			this.element.trigger(event);
+			var zoomkey_event = jQuery.Event("zb_key");
+			zoomkey_event.key = key.key;
+			zoomkey_event.entry_type = "press";
+			this.element.trigger(zoomkey_event);
 			this.reset();
 			return;
 		}
@@ -129,12 +243,14 @@ $.widget("ui.zoomboard", {
 		new_position.x -= (x+center_nudge_x)*(scale_factor-1);
 		new_position.y -= (y+center_nudge_y)*(scale_factor-1);
 		this.set_position(new_position);
-		event.preventDefault();
-		event.stopPropagation();
 		this.reset_reset_timeout();
 		return false;
 	}
-	, set_position: function(position) {
+	, set_position: function(position, non_animated) {
+		if(non_animated === true) {
+			this.img.css("-webkit-transition", "none");
+			this.img.css("-webkit-transition", "all 0.001s ease-out");
+		}
 		this.img.css({
 			left: position.x+"px"
 			, top: position.y+"px"
@@ -142,23 +258,37 @@ $.widget("ui.zoomboard", {
 			, height: position.height+"px"
 		});
 		this.position = position;
+		if(non_animated === true) {
+			this.img.css("-webkit-transition", "all " + this.option("anim_time") + "s ease-out");
+		}
 	}
-	, reset: function() {
-		this.set_position(this.original_position);
+	, reset: function(animated) {
+		this.set_position(this.original_position, animated === false);
 		this.clear_reset_timeout();
 	}
 	, get_center_of_position: function(position) {
 		return {x: position.x + position.width/2, y: position.y + position.height/2};
 	}
 	, get_key_for_point:  function(point) {
-		var keys = this.option("key_info");
+		var keys = this.keymap;
+		var min_distance = false, min_distance_key = null;
 		for(var i = 0, len = keys.length; i<len; i++) {
 			var key = keys[i];
 			if(key.x <= point.x && key.y <= point.y && key.x+key.width >= point.x && key.y + key.height >= point.y) {
 				return key;
+			} else {
+				var key_center_x = key.x + key.width/2;
+				var key_center_y = key.y + key.height/2;
+				var dx = point.x - key_center_x;
+				var dy = point.y - key_center_y;
+				var dsquared = Math.pow(dx, 2) + Math.pow(dy, 2);
+				if(min_distance_key === null || dsquared < min_distance) {
+					min_distance = dsquared;
+					min_distance_key = key;
+				}
 			}
 		}
-		return undefined;
+		return min_distance_key;
 	}
 	, clear_reset_timeout: function() {
 		if(this.reset_timeout !== undefined) {
