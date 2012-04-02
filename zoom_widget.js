@@ -102,17 +102,21 @@ $.widget("ui.zoomboard", {
 								if(dx > 0) {
 									self.on_swipe("left");
 									remove_event_handlers();
+									self.just_gestured = true;
 								} else {
 									self.on_swipe("right");
 									remove_event_handlers();
+									self.just_gestured = true;
 								}
 							} else if(Math.abs(dy) >= self.option("min_swipe_y")) {
 								if(dy > 0) {
 									self.on_swipe("up");
 									remove_event_handlers();
+									self.just_gestured = true;
 								} else {
 									self.on_swipe("down");
 									remove_event_handlers();
+									self.just_gestured = true;
 								}
 							}
 						}
@@ -146,6 +150,7 @@ $.widget("ui.zoomboard", {
 		this.reset_timeout = undefined;
 		this.set_keyboard_index(0);
 		this.starting_position = true;
+		this.just_gestured = false;
     }
 	, destroy: function() {
 		this.img.remove();
@@ -220,44 +225,27 @@ $.widget("ui.zoomboard", {
 		}
 	}
 	, on_element_click: function(event) {
-		var x,y;
 		if(this.option("is_ipad")) {
-			var offset = this.element.offset();
-			x = event.originalEvent.pageX - offset.left - this.position.x;
-			y = event.originalEvent.pageY - offset.top  - this.position.y;
 			event.preventDefault();
 			event.stopPropagation();
 		} else {
-			x = event.offsetX - this.position.x;
-			y = event.offsetY - this.position.y;
 			event.preventDefault();
 			event.stopPropagation();
 		}
 
-		var zoomtouch_event = jQuery.Event("zb_zoom");
-		zoomtouch_event.x = x;zoomtouch_event.y = y;
-		this.element.trigger(zoomtouch_event);
+		var do_zoom = $.proxy(function(x, y) {
+			var zoomtouch_event = jQuery.Event("zb_zoom");
+			zoomtouch_event.x = x;zoomtouch_event.y = y;
+			this.element.trigger(zoomtouch_event);
 
-		var new_position = _.clone(this.position);
-		var scale_factor = this.option("zoom_factor");
-		var center_bias = this.option("center_bias");
-		var current_zoom = this.position.width / this.original_dimensions.width;
+			var new_position = _.clone(this.position);
+			var scale_factor = this.option("zoom_factor");
+			var center_bias = this.option("center_bias");
+			var current_zoom = this.position.width / this.original_dimensions.width;
 
-		var max_zoom = this.option("max_zoom");
+			var max_zoom = this.option("max_zoom");
 
-		this.clear_reset_timeout();
-		if(this.option("is_ipad")) {
-			$(this.element).one("touchend", $.proxy(function(event) {
-				this.reset_reset_timeout();
-			}, this));
-		} else {
-			$(this.element).one("mouseup", $.proxy(function(event) {
-				this.reset_reset_timeout();
-			}, this));
-		}
-
-		if(scale_factor * current_zoom > max_zoom) {
-			var on_mouseup = function(x,y) {
+			if(scale_factor * current_zoom > max_zoom) {
 				scale_factor = max_zoom / current_zoom;
 				var original_image_point = {
 					x: x/current_zoom
@@ -268,56 +256,53 @@ $.widget("ui.zoomboard", {
 				zoomkey_event.key = key.key;
 				zoomkey_event.entry_type = "press";
 				this.element.trigger(zoomkey_event);
-				this.flash(key.key);
 				if(key.key === "space") {
 					this.flash("&#9251;");
+				} else {
+					this.flash(key.key);
 				}
 				this.reset();
-			};
-			if(this.option("is_ipad")) {
-				$(this.element).one("touchend", $.proxy(function(event) {
+				return;
+			} else {
+				this.starting_position = false;
+				var center_x = this.original_position.width/2;
+				var center_y = this.original_position.height/2;
+				var center_nudge_x = (center_bias * (center_x - x))/(current_zoom*12);
+				var center_nudge_y = (center_bias*2 * (center_y - y))/(current_zoom*8);
+
+				new_position.width *= scale_factor;
+				new_position.height *= scale_factor;
+				new_position.x -= (x+center_nudge_x)*(scale_factor-1);
+				new_position.y -= (y+center_nudge_y)*(scale_factor-1);
+				this.set_position(new_position);
+			}
+		}, this);
+
+
+		this.clear_reset_timeout();
+		if(this.option("is_ipad")) {
+			$(this.element).one("touchend", $.proxy(function(event) {
+				if(this.just_gestured === true) {
+					this.just_gestured = false;
+					return;
+				}
+				if(event.originalEvent.touches.length === 0) {
+					var offset = this.element.offset();
 					var x = event.originalEvent.changedTouches[0].pageX - offset.left - this.position.x;
 					var y = event.originalEvent.changedTouches[0].pageY - offset.top  - this.position.y;
-					on_mouseup.call(this, x, y);
-					this.reset();
-				}, this));
-			} else {
-				$(this.element).one("mouseup", $.proxy(function(event) {
-					var x = event.offsetX - this.position.x;
-					var y = event.offsetY - this.position.y;
-					on_mouseup.call(this, x, y);
-					this.reset();
-				}, this));
-			}
-
-			/*
-			scale_factor = max_zoom / current_zoom;
-			var original_image_point = {
-				x: x/current_zoom
-				, y: y/current_zoom
-			};
-			var key = this.get_key_for_point(original_image_point)
-			var zoomkey_event = jQuery.Event("zb_key");
-			zoomkey_event.key = key.key;
-			zoomkey_event.entry_type = "press";
-			this.element.trigger(zoomkey_event);
-			this.reset();
-			*/
-			return;
+					do_zoom(x, y);
+					this.reset_reset_timeout();
+				}
+			}, this));
 		} else {
-			this.starting_position = false;
+			$(this.element).one("mouseup", $.proxy(function(event) {
+				var x = event.offsetX - this.position.x;
+				var y = event.offsetY - this.position.y;
+				do_zoom(x, y);
+				this.reset_reset_timeout();
+			}, this));
 		}
 
-		var center_x = this.original_position.width/2;
-		var center_y = this.original_position.height/2;
-		var center_nudge_x = (center_bias * (center_x - x))/(current_zoom*12);
-		var center_nudge_y = (center_bias*2 * (center_y - y))/(current_zoom*8);
-
-		new_position.width *= scale_factor;
-		new_position.height *= scale_factor;
-		new_position.x -= (x+center_nudge_x)*(scale_factor-1);
-		new_position.y -= (y+center_nudge_y)*(scale_factor-1);
-		this.set_position(new_position);
 		return false;
 	}
 	, set_position: function(position, non_animated) {
