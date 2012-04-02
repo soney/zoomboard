@@ -156,7 +156,7 @@ $.widget("ui.zoomboard", {
 		return this.option("img_srcs").length;
 	}
 	, on_swipe: function(direction) {
-		var zoomswipe_event = jQuery.Event("zoomswipe");
+		var zoomswipe_event = jQuery.Event("zb_swipe");
 		zoomswipe_event.direction = direction;
 		this.element.trigger(zoomswipe_event);
 		this.reset(false);
@@ -207,7 +207,7 @@ $.widget("ui.zoomboard", {
 			event.stopPropagation();
 		}
 
-		var zoomtouch_event = jQuery.Event("zoomtouch");
+		var zoomtouch_event = jQuery.Event("zb_zoom");
 		zoomtouch_event.x = x;zoomtouch_event.y = y;
 		this.element.trigger(zoomtouch_event);
 
