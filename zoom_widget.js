@@ -9,11 +9,12 @@ $.widget("ui.zoomboard", {
 		, max_zoom: 1.0
 		, reset_on_max_zoom: true
 		, reset_timeout: 1000
-		, center_bias: -0.15
+		, center_bias: 0.10
 		, is_ipad: navigator.userAgent.match(/(iPad)|(iPod)|(iPhone)/i) != null
 		, anim_time: 0.1
 		, min_swipe_x: 40
 		, min_swipe_y: 30
+		, max_key_error_distance: 2
     }
 	, _create: function() {
 		$.Widget.prototype._create.call(this);
@@ -22,7 +23,6 @@ $.widget("ui.zoomboard", {
 			x: 0, y: 0, width: 0, height: 0
 		};
 		this.original_dimensions = {width:0, height:0};
-		this.position = {};
 		this.img = $("<img />")	.appendTo(this.element)
 								.css({
 									position: "absolute"
@@ -31,26 +31,19 @@ $.widget("ui.zoomboard", {
 									, "pointer-events": "none"
 									, "-webkit-transition": "all " + this.option("anim_time") + "s ease-out"
 								})
-								.bind("load", function(event) {
-									var width = self.img[0]["naturalWidth"]
-										, height = self.img[0]["naturalHeight"];
-									self.original_dimensions.width = width;
-									self.original_dimensions.height = height;
-									var scaled_width = self.option("original_scale") * width;
-									var scaled_height = self.option("original_scale") * height;
+								.on("load", function(event) {
+									self.original_dimensions.width = self.img[0]["naturalWidth"];
+									self.original_dimensions.height = self.img[0]["naturalHeight"];
 
-									self.original_position.width = scaled_width;
-									self.original_position.height = scaled_height;
-									self.img.css({
-										width: scaled_width+"px"
-										, height: scaled_height+"px"
-									});
-									self.set_position(self.original_position);
+									var window_dimensions = self.get_window_dimensions();
 
 									self.element.css({
-										width: scaled_width+"px"
-										, height: scaled_height+"px"
+										width: window_dimensions.width+"px"
+										, height: window_dimensions.height+"px"
 									});
+
+									self.overlay.css("font-size", (Math.min(window_dimensions.width, window_dimensions.height)/1.2)+"px");
+									self.reset();
 								});
 								this.img.on("load", $.proxy(function(event) {
 									window.setTimeout($.proxy(function() {
@@ -83,7 +76,7 @@ $.widget("ui.zoomboard", {
 			var self = this;
 			this.element.on("touchstart.zoomboard_swipe", function(ts_e) {
 				var is_moving = false;
-				if(self.starting_position && ts_e.originalEvent.touches.length === 1) {
+				if(self.in_starting_position && ts_e.originalEvent.touches.length === 1) {
 					var startX = ts_e.originalEvent.touches[0].pageX;
 					var startY = ts_e.originalEvent.touches[0].pageY;
 					is_moving = true;
@@ -151,7 +144,7 @@ $.widget("ui.zoomboard", {
 		}
 		this.reset_timeout = undefined;
 		this.set_keyboard_index(0);
-		this.starting_position = true;
+		this.in_starting_position = true;
 		this.just_gestured = false;
     }
 	, destroy: function() {
@@ -202,7 +195,7 @@ $.widget("ui.zoomboard", {
 			this.flash("&#x232B;");
 		} else if(direction === "right") {
 			var zoomkey_event = jQuery.Event("zb_key");
-			zoomkey_event.key = "space";
+			zoomkey_event.key = " ";
 			zoomkey_event.entry_type = "swipe";
 			this.element.trigger(zoomkey_event);
 			this.flash("&#9251;");
@@ -238,48 +231,53 @@ $.widget("ui.zoomboard", {
 			event.stopPropagation();
 		}
 
+		var current_zoom_x = this.get_x_zoom();
+		var current_zoom_y = this.get_y_zoom();
+		var current_zoom = this.get_zoom();
+
+		var scale_factor = this.option("zoom_factor");
+		var center_bias = this.option("center_bias");
+		var max_zoom = this.option("max_zoom");
+
 		var do_zoom = $.proxy(function(x, y) {
 			var zoomtouch_event = jQuery.Event("zb_zoom");
 			zoomtouch_event.x = x;zoomtouch_event.y = y;
 			this.element.trigger(zoomtouch_event);
 
-			var new_position = _.clone(this.position);
-			var scale_factor = this.option("zoom_factor");
-			var center_bias = this.option("center_bias");
-			var current_zoom = this.position.width / this.original_dimensions.width;
-
-			var max_zoom = this.option("max_zoom");
-
 			if(scale_factor * current_zoom > max_zoom) {
-				scale_factor = max_zoom / current_zoom;
-				var original_image_point = {
-					x: x/current_zoom
-					, y: y/current_zoom
-				};
-				var key = this.get_key_for_point(original_image_point)
-				var zoomkey_event = jQuery.Event("zb_key");
-				zoomkey_event.key = key.key;
-				zoomkey_event.entry_type = "press";
-				this.element.trigger(zoomkey_event);
-				if(key.key === "space") {
-					this.flash("&#9251;");
-				} else {
-					this.flash(key.key);
+				var key = this.get_key_for_point({x:x, y:y})
+				if(key !== null) {
+					var zoomkey_event = jQuery.Event("zb_key");
+					zoomkey_event.key = key.key;
+					zoomkey_event.entry_type = "press";
+					this.element.trigger(zoomkey_event);
+					if(key.key === " ") {
+						this.flash("&#9251;");
+					} else {
+						this.flash(key.key);
+					}
 				}
 				this.reset();
 				return;
 			} else {
-				this.starting_position = false;
-				var center_x = this.original_position.width/2;
-				var center_y = this.original_position.height/2;
-				var center_nudge_x = (center_bias * (center_x - x))/(current_zoom*12);
-				var center_nudge_y = (center_bias*2 * (center_y - y))/(current_zoom*8);
+				this.in_starting_position = false;
 
-				new_position.width *= scale_factor;
-				new_position.height *= scale_factor;
-				new_position.x -= (x+center_nudge_x)*(scale_factor-1);
-				new_position.y -= (y+center_nudge_y)*(scale_factor-1);
-				this.set_position(new_position);
+				var new_viewport_width = this.viewport.width / scale_factor;
+				var new_viewport_height = this.viewport.height / scale_factor;
+
+				var centered_x = x - new_viewport_width/2;
+				var centered_y = y - new_viewport_height/2;
+
+				var biased_viewport_x = x - (new_viewport_width * (x - this.viewport.x)) / this.viewport.width;
+				var biased_viewport_y = y - (new_viewport_height * (y - this.viewport.y)) / this.viewport.height;
+
+
+				this.set_viewport({
+					width: new_viewport_width
+					, height: new_viewport_height
+					, x: biased_viewport_x * (1 - center_bias) + centered_x * center_bias
+					, y: biased_viewport_y * (1 - center_bias) + centered_y * center_bias
+				});
 			}
 		}, this);
 
@@ -293,16 +291,16 @@ $.widget("ui.zoomboard", {
 				}
 				if(event.originalEvent.touches.length === 0) {
 					var offset = this.element.offset();
-					var x = event.originalEvent.changedTouches[0].pageX - offset.left - this.position.x;
-					var y = event.originalEvent.changedTouches[0].pageY - offset.top  - this.position.y;
+					var x = (event.originalEvent.changedTouches[0].pageX - offset.left) / current_zoom_x + this.viewport.x;
+					var y = (event.originalEvent.changedTouches[0].pageY - offset.top) / current_zoom_y  + this.viewport.y;
 					do_zoom(x, y);
 					this.reset_reset_timeout();
 				}
 			}, this));
 		} else {
 			$(this.element).one("mouseup", $.proxy(function(event) {
-				var x = event.offsetX - this.position.x;
-				var y = event.offsetY - this.position.y;
+				var x = event.offsetX / current_zoom_x + this.viewport.x;
+				var y = event.offsetY / current_zoom_y  + this.viewport.y;
 				do_zoom(x, y);
 				this.reset_reset_timeout();
 			}, this));
@@ -310,8 +308,34 @@ $.widget("ui.zoomboard", {
 
 		return false;
 	}
-	, set_position: function(position, non_animated) {
-		if(non_animated === true) {
+	, set_viewport: function(viewport, animated) {
+		var window_dimensions = this.get_window_dimensions();
+
+		var scale_x = window_dimensions.width / viewport.width;
+		var scale_y = window_dimensions.height / viewport.height;
+		
+		var width = scale_x * this.original_dimensions.width;
+		var height = scale_y * this.original_dimensions.height;
+
+		var x = - viewport.x * scale_x;
+		var y = - viewport.y * scale_y;
+
+
+
+		this.set_position({
+			x: x, y: y, width: width, height: height
+		}, animated);
+		this.viewport = viewport;
+	}
+	, get_window_dimensions: function() {
+		var original_scale = this.option("original_scale");
+		return {
+			width: this.original_dimensions.width * original_scale 
+			, height: this.original_dimensions.height * original_scale 
+		};
+	}
+	, set_position: function(position, animated) {
+		if(animated === false) {
 			this.img.css("-webkit-transition", "none");
 			this.img.css("-webkit-transition", "all 0.001s ease-out");
 		}
@@ -322,21 +346,33 @@ $.widget("ui.zoomboard", {
 			, height: position.height+"px"
 		});
 		this.position = position;
-		if(non_animated === true) {
+		if(animated === false) {
 			this.img.css("-webkit-transition", "all " + this.option("anim_time") + "s ease-out");
 		}
 	}
 	, reset: function(animated) {
-		this.set_position(this.original_position, animated === false);
+		this.set_viewport({
+			x: 0, y: 0, width: this.original_dimensions.width, height: this.original_dimensions.height
+		}, animated === true);
 		this.clear_reset_timeout();
 		this.starting_position = true;
 	}
 	, get_center_of_position: function(position) {
 		return {x: position.x + position.width/2, y: position.y + position.height/2};
 	}
+	, get_x_zoom: function() {
+		return this.position.width / this.original_dimensions.width;
+	}
+	, get_y_zoom: function() {
+		return this.position.height / this.original_dimensions.height;
+	}
+	, get_zoom: function() {
+		return Math.max(this.get_x_zoom(), this.get_y_zoom());
+	}
 	, get_key_for_point:  function(point) {
 		var keys = this.keymap;
 		var min_distance = false, min_distance_key = null;
+		var max_key_error_distance_squared = Math.pow(this.option("max_key_error_distance"), 2);
 		for(var i = 0, len = keys.length; i<len; i++) {
 			var key = keys[i];
 			if(key.x <= point.x && key.y <= point.y && key.x+key.width >= point.x && key.y + key.height >= point.y) {
@@ -347,12 +383,13 @@ $.widget("ui.zoomboard", {
 				var dx = point.x - key_center_x;
 				var dy = point.y - key_center_y;
 				var dsquared = Math.pow(dx, 2) + Math.pow(dy, 2);
-				if(min_distance_key === null || dsquared < min_distance) {
+				if((min_distance_key === null || dsquared < min_distance) && dsquared < max_key_error_distance_squared * Math.pow(Math.min(key.width, key.height), 2)) {
 					min_distance = dsquared;
 					min_distance_key = key;
 				}
 			}
 		}
+
 		return min_distance_key;
 	}
 	, clear_reset_timeout: function() {

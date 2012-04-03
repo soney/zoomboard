@@ -16,10 +16,6 @@
 					var typed_div = $("div.typed");
 					if(key === "delete") {
 						typed_div.contents().last().remove();
-					} else if(key === "return") {
-						typed_div.append($("<br />"));
-					} else if(key === "space") {
-						typed_div.append(" ");
 					} else {
 						typed_div.append(key);
 					}
