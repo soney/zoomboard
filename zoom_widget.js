@@ -355,7 +355,7 @@ $.widget("ui.zoomboard", {
 			x: 0, y: 0, width: this.original_dimensions.width, height: this.original_dimensions.height
 		}, animated === true);
 		this.clear_reset_timeout();
-		this.starting_position = true;
+		this.in_starting_position = true;
 	}
 	, get_center_of_position: function(position) {
 		return {x: position.x + position.width/2, y: position.y + position.height/2};
