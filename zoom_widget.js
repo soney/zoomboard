@@ -150,6 +150,8 @@ $.widget("ui.zoomboard", {
 						event.returnValue = false;
 						event.cancelBubble = true;
 						zoomkey_event.key = "delete";
+					} else if(event.keyCode === 13) { //return
+						zoomkey_event.key = "enter";
 					}
 					zoomkey_event.entry_type = "keyboard_press";
 					self.element.trigger(zoomkey_event);
@@ -435,8 +437,9 @@ $.widget("ui.zoomboard", {
 		if(key === "delete") {
 			//this.flash("&#9224;");
 			this.flash("&#x232B;");
-		}
-		else if(key === " ") {
+		} else if(key === "enter") {
+			this.flash("&#9252;");
+		} else if(key === " ") {
 			this.flash("&#9251;");
 		} else {
 			this.flash(key);
