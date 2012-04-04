@@ -15,6 +15,7 @@ $.widget("ui.zoomboard", {
 		, min_swipe_x: 40
 		, min_swipe_y: 30
 		, max_key_error_distance: 2
+		, use_real_keyboard: true
     }
 	, _create: function() {
 		$.Widget.prototype._create.call(this);
@@ -130,6 +131,9 @@ $.widget("ui.zoomboard", {
 				return false;
 			});
 			var self = this;
+		}
+
+		if(this.option("use_real_keyboard")) {
 			$(window).on("keydown.zoomboard", function(event) {
 				if(event.keyCode === 37) { //left
 					self.on_swipe("left");
@@ -142,9 +146,18 @@ $.widget("ui.zoomboard", {
 				} else {
 					var zoomkey_event = jQuery.Event("zb_key");
 					zoomkey_event.key = String.fromCharCode(event.keyCode).toLowerCase();
+					if (event.keyCode === 8) {
+						event.returnValue = false;
+						event.cancelBubble = true;
+						zoomkey_event.key = "delete";
+					}
 					zoomkey_event.entry_type = "keyboard_press";
 					self.element.trigger(zoomkey_event);
-					self.flash(zoomkey_event.key);
+					self.flashkey(zoomkey_event.key);
+
+					event.preventDefault();
+					event.stopPropagation();
+					return false;
 				}
 			});
 		}
@@ -165,8 +178,8 @@ $.widget("ui.zoomboard", {
 		} else {
 			this.element.off("mousedown.zoomboard");
 			$(window).off("mousedown.zoomboard");
-			$(window).off("keydown.zoomboard");
 		}
+		$(window).off("keydown.zoomboard");
 
 		$.Widget.prototype.destroy.call(this);
 	}
@@ -197,14 +210,13 @@ $.widget("ui.zoomboard", {
 			zoomkey_event.key = "delete";
 			zoomkey_event.entry_type = "swipe";
 			this.element.trigger(zoomkey_event);
-			//this.flash("&#9224;");
-			this.flash("&#x232B;");
+			this.flashkey(zoom_event.key);
 		} else if(direction === "right") {
 			var zoomkey_event = jQuery.Event("zb_key");
 			zoomkey_event.key = " ";
 			zoomkey_event.entry_type = "swipe";
 			this.element.trigger(zoomkey_event);
-			this.flash("&#9251;");
+			this.flashkey(zoom_event.key);
 		} else if(direction === "up") {
 			var keyboard_index = this.get_keyboard_index();
 			var num_keyboards = this.get_num_keyboards();
@@ -257,11 +269,7 @@ $.widget("ui.zoomboard", {
 					zoomkey_event.key = key.key;
 					zoomkey_event.entry_type = "press";
 					this.element.trigger(zoomkey_event);
-					if(key.key === " ") {
-						this.flash("&#9251;");
-					} else {
-						this.flash(key.key);
-					}
+					this.flashkey(zoomkey_event.key);
 				}
 				this.reset();
 				return;
@@ -422,6 +430,17 @@ $.widget("ui.zoomboard", {
 			this.overlay.css("opacity", 0);
 		}, this), duration);
 
+	}
+	, flashkey: function(key) {
+		if(key === "delete") {
+			//this.flash("&#9224;");
+			this.flash("&#x232B;");
+		}
+		else if(key === " ") {
+			this.flash("&#9251;");
+		} else {
+			this.flash(key);
+		}
 	}
 });
 }());
