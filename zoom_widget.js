@@ -139,6 +139,12 @@ $.widget("ui.zoomboard", {
 					self.on_swipe("up");
 				} else if(event.keyCode === 40) { //down
 					self.on_swipe("down");
+				} else {
+					var zoomkey_event = jQuery.Event("zb_key");
+					zoomkey_event.key = String.fromCharCode(event.keyCode).toLowerCase();
+					zoomkey_event.entry_type = "keyboard_press";
+					self.element.trigger(zoomkey_event);
+					self.flash(zoomkey_event.key);
 				}
 			});
 		}
