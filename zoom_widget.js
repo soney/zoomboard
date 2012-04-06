@@ -99,6 +99,7 @@ $.widget("ui.zoomboard", {
 									self.on_swipe("left");
 									remove_event_handlers();
 									self.just_gestured = true;
+									console.log("left");
 								} else {
 									self.on_swipe("right");
 									remove_event_handlers();
