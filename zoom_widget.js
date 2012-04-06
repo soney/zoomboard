@@ -99,7 +99,6 @@ $.widget("ui.zoomboard", {
 									self.on_swipe("left");
 									remove_event_handlers();
 									self.just_gestured = true;
-									console.log("left");
 								} else {
 									self.on_swipe("right");
 									remove_event_handlers();
@@ -213,13 +212,13 @@ $.widget("ui.zoomboard", {
 			zoomkey_event.key = "delete";
 			zoomkey_event.entry_type = "swipe";
 			this.element.trigger(zoomkey_event);
-			this.flashkey(zoom_event.key);
+			this.flashkey(zoomkey_event.key);
 		} else if(direction === "right") {
 			var zoomkey_event = jQuery.Event("zb_key");
 			zoomkey_event.key = " ";
 			zoomkey_event.entry_type = "swipe";
 			this.element.trigger(zoomkey_event);
-			this.flashkey(zoom_event.key);
+			this.flashkey(zoomkey_event.key);
 		} else if(direction === "up") {
 			var keyboard_index = this.get_keyboard_index();
 			var num_keyboards = this.get_num_keyboards();
